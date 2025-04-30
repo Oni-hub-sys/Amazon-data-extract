@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Amazon Product Extractor</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .loader {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top: 4px solid #3498db;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .result-section {
+            transition: all 0.3s ease;
+        }
+        
+        .copy-btn {
+            transition: all 0.2s ease;
+        }
+        
+        .copy-btn:hover {
+            transform: translateY(-2px);
+        }
+        
+        .copy-btn:active {
+            transform: translateY(0);
+        }
+        
+        .floating-notification {
+            animation: fadeInOut 2.5s ease-in-out;
+            opacity: 0;
+        }
+        
+        @keyframes fadeInOut {
+            0% { opacity: 0; transform: translateY(20px); }
+            20% { opacity: 1; transform: translateY(0); }
+            80% { opacity: 1; transform: translateY(0); }
+            100% { opacity: 0; transform: translateY(-20px); }
+        }
+        
+        .info-item {
+            display: flex;
+            margin-bottom: 8px;
+        }
+        
+        .info-label {
+            font-weight: 600;
+            min-width: 150px;
+            color: #4b5563;
+        }
+        
+        .info-value {
+            flex: 1;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <div class="max-w-4xl mx-auto">
+            <!-- Header -->
+            <div class="text-center mb-8">
+                <h1 class="text-4xl font-bold text-indigo-700 mb-2">Amazon Product Extractor</h1>
+                <p class="text-gray-600">Extract detailed product information from any Amazon product page</p>
+            </div>
+            
+            <!-- Input Form -->
+            <div class="bg-white rounded-xl shadow-lg p-6 mb-8">
+                <div class="flex flex-col md:flex-row gap-4">
+                    <input 
+                        type="text" 
+                        id="amazonUrl" 
+                        placeholder="Paste Amazon product URL here (e.g. https://www.amazon.com/dp/B08N5KWB9H)" 
+                        class="flex-grow px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    >
+                    <button 
+                        id="extractBtn" 
+                        class="px-6 py-3 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-colors flex items-center justify-center"
+                    >
+                        <i class="fas fa-search mr-2"></i> Extract Info
+                    </button>
+                </div>
+                <div class="mt-4 text-sm text-gray-500">
+                    <p><i class="fas fa-info-circle mr-1"></i> This tool will extract: Title, Price, Ratings, Reviews, Descriptions, Technical Details and more.</p>
+                </div>
+            </div>
+            
+            <!-- Results Section (Initially hidden) -->
+            <div id="resultsContainer" class="hidden">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-2xl font-semibold text-gray-800">Extracted Information</h2>
+                    <button 
+                        id="copyAllBtn" 
+                        class="copy-btn px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center"
+                    >
+                        <i class="fas fa-copy mr-2"></i> Copy All
+                    </button>
+                </div>
+                
+                <div class="result-section bg-white rounded-xl shadow-lg p-6 mb-6">
+                    <div class="flex justify-between items-start">
+                        <div class="w-full">
+                            <h3 class="text-lg font-medium text-gray-900 mb-2">Basic Information</h3>
+                            <div id="basicInfo" class="space-y-3">
+                                <div class="info-item">
+                                    <span class="info-label">Title:</span>
+                                    <span id="productTitle" class="info-value">Loading...</span>
+                                </div>
+                                <div id="dynamicBasicInfo">
+                                    <!-- Dynamic basic info will be inserted here -->
+                                </div>
+                            </div>
+                        </div>
+                        <button 
+                            data-section="basicInfo" 
+                            class="copy-btn px-3 py-1 bg-blue-100 text-blue-600 rounded text-sm hover:bg-blue-200 flex items-center"
+                        >
+                            <i class="fas fa-copy mr-1 text-xs"></i> Copy
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="result-section bg-white rounded-xl shadow-lg p-6 mb-6">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <h3 class="text-lg font-medium text-gray-900 mb-2">Variants & Pricing</h3>
+                            <div id="variantsInfo">
+                                <p class="text-gray-500">No variants available</p>
+                            </div>
+                        </div>
+                        <button 
+                            data-section="variantsInfo" 
+                            class="copy-btn px-3 py-1 bg-blue-100 text-blue-600 rounded text-sm hover:bg-blue-200 flex items-center"
+                        >
+                            <i class="fas fa-copy mr-1 text-xs"></i> Copy
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="result-section bg-white rounded-xl shadow-lg p-6 mb-6">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <h3 class="text-lg font-medium text-gray-900 mb-2">About This Item</h3>
+                            <div id="aboutThisItem" class="prose max-w-none">
+                                <p class="text-gray-500">Loading description...</p>
+                            </div>
+                        </div>
+                        <button 
+                            data-section="aboutThisItem" 
+                            class="copy-btn px-3 py-1 bg-blue-100 text-blue-600 rounded text-sm hover:bg-blue-200 flex items-center"
+                        >
+                            <i class="fas fa-copy mr-1 text-xs"></i> Copy
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="result-section bg-white rounded-xl shadow-lg p-6 mb-6">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <h3 class="text-lg font-medium text-gray-900 mb-2">Product Description</h3>
+                            <div id="productDescription" class="prose max-w-none">
+                                <p class="text-gray-500">Loading description...</p>
+                            </div>
+                        </div>
+                        <button 
+                            data-section="productDescription" 
+                            class="copy-btn px-3 py-1 bg-blue-100 text-blue-600 rounded text-sm hover:bg-blue-200 flex items-center"
+                        >
+                            <i class="fas fa-copy mr-1 text-xs"></i> Copy
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="result-section bg-white rounded-xl shadow-lg p-6 mb-6">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <h3 class="text-lg font-medium text-gray-900 mb-2">Technical Details</h3>
+                            <div id="technicalDetails">
+                                <p class="text-gray-500">No technical details available</p>
+                            </div>
+                        </div>
+                        <button 
+                            data-section="technicalDetails" 
+                            class="copy-btn px-3 py-1 bg-blue-100 text-blue-600 rounded text-sm hover:bg-blue-200 flex items-center"
+                        >
+                            <i class="fas fa-copy mr-1 text-xs"></i> Copy
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="result-section bg-white rounded-xl shadow-lg p-6 mb-6">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <h3 class="text-lg font-medium text-gray-900 mb-2">Additional Information</h3>
+                            <div id="additionalInfo">
+                                <p class="text-gray-500">No additional information available</p>
+                            </div>
+                        </div>
+                        <button 
+                            data-section="additionalInfo" 
+                            class="copy-btn px-3 py-1 bg-blue-100 text-blue-600 rounded text-sm hover:bg-blue-200 flex items-center"
+                        >
+                            <i class="fas fa-copy mr-1 text-xs"></i> Copy
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="result-section bg-white rounded-xl shadow-lg p-6">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <h3 class="text-lg font-medium text-gray-900 mb-2">What's in the Box</h3>
+                            <div id="whatsInBox">
+                                <p class="text-gray-500">No information available</p>
+                            </div>
+                        </div>
+                        <button 
+                            data-section="whatsInBox" 
+                            class="copy-btn px-3 py-1 bg-blue-100 text-blue-600 rounded text-sm hover:bg-blue-200 flex items-center"
+                        >
+                            <i class="fas fa-copy mr-1 text-xs"></i> Copy
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Loading Indicator -->
+            <div id="loadingIndicator" class="hidden text-center py-8">
+                <div class="loader mb-4"></div>
+                <p class="text-gray-600">Extracting product information...</p>
+            </div>
+            
+            <!-- Error Message -->
+            <div id="errorMessage" class="hidden bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-8 rounded">
+                <div class="flex items-center">
+                    <i class="fas fa-exclamation-circle mr-2"></i>
+                    <p id="errorText">Error message will appear here</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Floating Notification -->
+    <div id="copyNotification" class="fixed bottom-4 right-4 bg-green-600 text-white px-4 py-2 rounded-lg shadow-lg floating-notification hidden">
+        <i class="fas fa-check-circle mr-2"></i> Copied to clipboard!
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const extractBtn = document.getElementById('extractBtn');
+            const amazonUrl = document.getElementById('amazonUrl');
+            const resultsContainer = document.getElementById('resultsContainer');
+            const loadingIndicator = document.getElementById('loadingIndicator');
+            const errorMessage = document.getElementById('errorMessage');
+            const copyAllBtn = document.getElementById('copyAllBtn');
+            const copyNotification = document.getElementById('copyNotification');
+            const dynamicBasicInfo = document.getElementById('dynamicBasicInfo');
+            
+            // Mock data for demonstration
+            const mockProductData = {
+                title: "Apple AirPods Pro (2nd Generation) Wireless Earbuds",
+                basicInfo: [
+                    { label: "Brand", value: "Apple" },
+                    { label: "Model", value: "AirPods Pro (2nd generation)" },
+                    { label: "Color", value: "White" },
+                    { label: "Price", value: "$199.00", isHighlighted: true },
+                    { label: "Deal", value: "Save 10% with coupon", isHighlighted: true },
+                    { label: "Monthly Orders", value: "10,000+ bought in past month" },
+                    { label: "Rating", value: "4.5 out of 5 stars" },
+                    { label: "Reviews", value: "45,678 ratings" },
+                    { label: "Availability", value: "In Stock", isHighlighted: true },
+                    { label: "Shipping", value: "FREE delivery Tomorrow, May 30" },
+                    { label: "Sold By", value: "Amazon.com" },
+                    { label: "Item Model Number", value: "MLWK3AM/A" },
+                    { label: "Date First Available", value: "September 7, 2022" }
+                ],
+                variants: [
+                    { name: "AirPods Pro (2nd Gen)", price: "$199.00" },
+                    { name: "AirPods Pro (2nd Gen) with MagSafe Charging Case", price: "$249.00" },
+                    { name: "AirPods Pro (2nd Gen) with Wireless Charging Case", price: "$229.00" }
+                ],
+                aboutThisItem: [
+                    "The Apple AirPods Pro (2nd generation) deliver advanced noise cancellation with up to 2x more active noise cancellation than the previous generation.",
+                    "The Adaptive Transparency mode reduces loud environmental noise for comfortable listening.",
+                    "The MagSafe Charging Case includes a speaker for locating it via Find My and a lanyard loop.",
+                    "These wireless earbuds feature Personalized Spatial Audio with dynamic head tracking for immersive music and movies.",
+                    "The sweat and water-resistant design (IPX4) makes them perfect for workouts.",
+                    "With multiple ear tips included, you get a customizable fit for all-day comfort."
+                ],
+                productDescription: "The AirPods Pro (2nd generation) represent Apple's latest innovation in wireless audio technology. Building upon the success of the original AirPods Pro, these earbuds offer significant improvements in sound quality, noise cancellation, and battery life. The H2 chip enables smarter noise cancellation and more efficient power consumption, while the new touch controls on the stem allow for volume adjustment with a simple swipe. The charging case now features a built-in speaker for Find My functionality and a U1 chip for Precision Finding. Whether you're commuting, working out, or just relaxing, the AirPods Pro (2nd generation) deliver an unparalleled listening experience.",
+                technicalDetails: {
+                    "Brand": "Apple",
+                    "Model": "AirPods Pro (2nd generation)",
+                    "Color": "White",
+                    "Form Factor": "In Ear",
+                    "Connectivity Technology": "Bluetooth 5.3",
+                    "Battery Life": "Up to 6 hours (ANC on), up to 30 hours with case",
+                    "Water Resistance": "IPX4 (sweat and water resistant)",
+                    "Dimensions": "1.22 x 0.86 x 0.94 inches",
+                    "Weight": "5.3 ounces",
+                    "Warranty": "1 year limited warranty"
+                },
+                additionalInfo: {
+                    "ASIN": "B0CHWK2DLJ",
+                    "Release Date": "September 22, 2023",
+                    "Best Sellers Rank": "#1 in Electronics, #1 in Headphones",
+                    "Manufacturer": "Apple Inc.",
+                    "Country of Origin": "China",
+                    "Item Weight": "5.3 ounces",
+                    "Product Dimensions": "1.22 x 0.86 x 0.94 inches"
+                },
+                whatsInBox: [
+                    "AirPods Pro (2nd generation)",
+                    "MagSafe Charging Case",
+                    "Four pairs of silicone tips (XS, S, M, L)",
+                    "Lightning to USB-C Cable",
+                    "Documentation"
+                ]
+            };
+            
+            // Extract button click handler
+            extractBtn.addEventListener('click', function() {
+                const url = amazonUrl.value.trim();
+                
+                if (!url) {
+                    showError("Please enter an Amazon product URL");
+                    return;
+                }
+                
+                if (!isValidAmazonUrl(url)) {
+                    showError("Please enter a valid Amazon product URL");
+                    return;
+                }
+                
+                // Show loading, hide results and error
+                loadingIndicator.classList.remove('hidden');
+                resultsContainer.classList.add('hidden');
+                errorMessage.classList.add('hidden');
+                
+                // Simulate API call with timeout
+                setTimeout(() => {
+                    // In a real implementation, you would make an actual API call here
+                    // For this demo, we'll use mock data
+                    try {
+                        displayProductData(mockProductData);
+                        loadingIndicator.classList.add('hidden');
+                        resultsContainer.classList.remove('hidden');
+                    } catch (error) {
+                        showError("Failed to extract product information. Please try again.");
+                        loadingIndicator.classList.add('hidden');
+                    }
+                }, 1500);
+            });
+            
+            // Validate Amazon URL
+            function isValidAmazonUrl(url) {
+                return url.includes('amazon.com') && (url.includes('/dp/') || url.includes('/product/') || url.includes('/gp/product/'));
+            }
+            
+            // Show error message
+            function showError(message) {
+                errorMessage.classList.remove('hidden');
+                document.getElementById('errorText').textContent = message;
+            }
+            
+            // Display product data in the UI
+            function displayProductData(data) {
+                // Basic Info
+                document.getElementById('productTitle').textContent = data.title;
+                
+                // Dynamic Basic Info
+                dynamicBasicInfo.innerHTML = '';
+                data.basicInfo.forEach(info => {
+                    const infoEl = document.createElement('div');
+                    infoEl.className = 'info-item';
+                    
+                    const labelEl = document.createElement('span');
+                    labelEl.className = 'info-label';
+                    labelEl.textContent = info.label + ':';
+                    
+                    const valueEl = document.createElement('span');
+                    valueEl.className = 'info-value';
+                    if (info.isHighlighted) {
+                        valueEl.className += ' text-green-600 font-medium';
+                    }
+                    valueEl.textContent = info.value;
+                    
+                    infoEl.appendChild(labelEl);
+                    infoEl.appendChild(valueEl);
+                    dynamicBasicInfo.appendChild(infoEl);
+                });
+                
+                // Variants
+                const variantsContainer = document.getElementById('variantsInfo');
+                if (data.variants && data.variants.length > 0) {
+                    variantsContainer.innerHTML = '';
+                    data.variants.forEach(variant => {
+                        const variantEl = document.createElement('div');
+                        variantEl.className = 'py-1';
+                        variantEl.innerHTML = `<span class="font-medium">${variant.name}:</span> <span class="text-green-600">${variant.price}</span>`;
+                        variantsContainer.appendChild(variantEl);
+                    });
+                }
+                
+                // About This Item
+                const aboutThisItemContainer = document.getElementById('aboutThisItem');
+                if (data.aboutThisItem && data.aboutThisItem.length > 0) {
+                    aboutThisItemContainer.innerHTML = '<ul class="list-disc pl-5 space-y-2"></ul>';
+                    const list = aboutThisItemContainer.querySelector('ul');
+                    data.aboutThisItem.forEach(item => {
+                        const itemEl = document.createElement('li');
+                        itemEl.textContent = item;
+                        list.appendChild(itemEl);
+                    });
+                }
+                
+                // Product Description
+                const productDescriptionContainer = document.getElementById('productDescription');
+                if (data.productDescription) {
+                    productDescriptionContainer.innerHTML = `<p>${data.productDescription}</p>`;
+                }
+                
+                // Technical Details
+                const techDetailsContainer = document.getElementById('technicalDetails');
+                if (data.technicalDetails) {
+                    techDetailsContainer.innerHTML = '';
+                    for (const [key, value] of Object.entries(data.technicalDetails)) {
+                        const detailEl = document.createElement('div');
+                        detailEl.className = 'info-item py-1';
+                        detailEl.innerHTML = `<span class="info-label">${key}:</span> <span class="info-value">${value}</span>`;
+                        techDetailsContainer.appendChild(detailEl);
+                    }
+                }
+                
+                // Additional Info
+                const additionalInfoContainer = document.getElementById('additionalInfo');
+                if (data.additionalInfo) {
+                    additionalInfoContainer.innerHTML = '';
+                    for (const [key, value] of Object.entries(data.additionalInfo)) {
+                        const infoEl = document.createElement('div');
+                        infoEl.className = 'info-item py-1';
+                        infoEl.innerHTML = `<span class="info-label">${key}:</span> <span class="info-value">${value}</span>`;
+                        additionalInfoContainer.appendChild(infoEl);
+                    }
+                }
+                
+                // What's in the Box
+                const whatsInBoxContainer = document.getElementById('whatsInBox');
+                if (data.whatsInBox && data.whatsInBox.length > 0) {
+                    whatsInBoxContainer.innerHTML = '<ul class="list-disc pl-5 space-y-1"></ul>';
+                    const list = whatsInBoxContainer.querySelector('ul');
+                    data.whatsInBox.forEach(item => {
+                        const itemEl = document.createElement('li');
+                        itemEl.textContent = item;
+                        list.appendChild(itemEl);
+                    });
+                }
+            }
+            
+            // Copy buttons functionality
+            document.querySelectorAll('[data-section]').forEach(button => {
+                button.addEventListener('click', function() {
+                    const sectionId = this.getAttribute('data-section');
+                    const section = document.getElementById(sectionId);
+                    let textToCopy = '';
+                    
+                    if (sectionId === 'variantsInfo' || sectionId === 'whatsInBox' || sectionId === 'aboutThisItem') {
+                        // Handle special cases
+                        textToCopy = section.textContent.trim();
+                    } else if (sectionId === 'basicInfo') {
+                        // Format basic info for copying
+                        const title = document.getElementById('productTitle').textContent;
+                        const infoItems = section.querySelectorAll('.info-item');
+                        
+                        textToCopy = title + "\n\n";
+                        infoItems.forEach(item => {
+                            const label = item.querySelector('.info-label').textContent.replace(':', '');
+                            const value = item.querySelector('.info-value').textContent;
+                            textToCopy += `${label}: ${value}\n`;
+                        });
+                    } else {
+                        // Clone the section to preserve formatting
+                        const clone = section.cloneNode(true);
+                        
+                        // Remove any buttons from the clone
+                        clone.querySelectorAll('button').forEach(btn => btn.remove());
+                        
+                        // Get text content
+                        textToCopy = clone.textContent.trim();
+                    }
+                    
+                    copyToClipboard(textToCopy);
+                    showCopyNotification();
+                });
+            });
+            
+            // Copy All button functionality
+            copyAllBtn.addEventListener('click', function() {
+                let allText = '';
+                
+                // Title
+                allText += "=== PRODUCT TITLE ===\n";
+                allText += document.getElementById('productTitle').textContent.trim() + "\n\n";
+                
+                // Basic Info
+                allText += "=== BASIC INFORMATION ===\n";
+                const basicInfoItems = document.querySelectorAll('#basicInfo .info-item');
+                basicInfoItems.forEach(item => {
+                    const label = item.querySelector('.info-label').textContent.replace(':', '');
+                    const value = item.querySelector('.info-value').textContent;
+                    allText += `${label}: ${value}\n`;
+                });
+                allText += "\n";
+                
+                // Variants
+                allText += "=== VARIANTS & PRICING ===\n";
+                allText += document.getElementById('variantsInfo').textContent.trim() + "\n\n";
+                
+                // About This Item
+                allText += "=== ABOUT THIS ITEM ===\n";
+                allText += document.getElementById('aboutThisItem').textContent.trim() + "\n\n";
+                
+                // Product Description
+                allText += "=== PRODUCT DESCRIPTION ===\n";
+                allText += document.getElementById('productDescription').textContent.trim() + "\n\n";
+                
+                // Technical Details
+                allText += "=== TECHNICAL DETAILS ===\n";
+                allText += document.getElementById('technicalDetails').textContent.trim() + "\n\n";
+                
+                // Additional Info
+                allText += "=== ADDITIONAL INFORMATION ===\n";
+                allText += document.getElementById('additionalInfo').textContent.trim() + "\n\n";
+                
+                // What's in the Box
+                allText += "=== WHAT'S IN THE BOX ===\n";
+                allText += document.getElementById('whatsInBox').textContent.trim();
+                
+                copyToClipboard(allText);
+                showCopyNotification();
+            });
+            
+            // Copy text to clipboard
+            function copyToClipboard(text) {
+                const textarea = document.createElement('textarea');
+                textarea.value = text;
+                document.body.appendChild(textarea);
+                textarea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textarea);
+            }
+            
+            // Show copy notification
+            function showCopyNotification() {
+                copyNotification.classList.remove('hidden');
+                setTimeout(() => {
+                    copyNotification.classList.add('hidden');
+                }, 2500);
+            }
+        });
+    </script>
+<p style="border-radius: 8px; text-align: center; font-size: 12px; color: #fff; margin-top: 16px;position: fixed; left: 8px; bottom: 8px; z-index: 10; background: rgba(0, 0, 0, 0.8); padding: 4px 8px;">Made with <img src="https://enzostvs-deepsite.hf.space/logo.svg" alt="DeepSite Logo" style="width: 16px; height: 16px; vertical-align: middle;display:inline-block;margin-right:3px;filter:brightness(0) invert(1);"><a href="https://enzostvs-deepsite.hf.space" style="color: #fff;text-decoration: underline;" target="_blank" >DeepSite</a> - 🧬 <a href="https://enzostvs-deepsite.hf.space?remix=OniBD/amazon-data-extractions" style="color: #fff;text-decoration: underline;" target="_blank" >Remix</a></p></body>
+</html>
